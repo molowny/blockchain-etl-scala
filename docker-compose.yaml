@@ -1,0 +1,13 @@
+version: "3"
+
+services:
+  geth:
+    image: ethereum/client-go:latest
+    command: "--syncmode light --rpc -rpcaddr 0.0.0.0 --rpcapi eth --cache 1024"
+    ports:
+      - "8545:8545"
+
+  redis:
+    image: "redis:alpine"
+    ports:
+      - "6379:6379"
