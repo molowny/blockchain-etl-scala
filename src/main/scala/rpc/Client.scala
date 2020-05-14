@@ -1,13 +1,14 @@
 package io.olownia.rpc
 
 import scala.util.control.NoStackTrace
-import com.typesafe.scalalogging.LazyLogging
-import cats.implicits._
+
 import cats.effect.Concurrent
+import cats.implicits._
+import com.typesafe.scalalogging.LazyLogging
 import fs2.Stream
-import org.http4s.{Uri, Method, EntityDecoder, EntityEncoder}
 import org.http4s.client._
 import org.http4s.client.dsl.Http4sClientDsl
+import org.http4s.{EntityDecoder, EntityEncoder, Method, Uri}
 
 // case class RpcId(id: String)
 
@@ -76,9 +77,9 @@ class RpcClient[F[_]: Concurrent](
           )
       }
       .flatMap(Stream.emits)
-      .evalTap(response =>
-        Concurrent[F].delay(logger.debug(s"Response: $response"))
-      )
+      // .evalTap(response =>
+      //   Concurrent[F].delay(logger.debug(s"Response: $response"))
+      // )
       .flatMap {
         case RpcResponse(_, _, Some(error), _) =>
           Stream.raiseError[F](error)

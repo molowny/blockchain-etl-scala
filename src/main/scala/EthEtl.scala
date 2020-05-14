@@ -1,32 +1,41 @@
 package io.olownia
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import com.typesafe.scalalogging.LazyLogging
+import java.util.concurrent.Executors
+
+import scala.concurrent.ExecutionContext
+
 import cats.effect.{ExitCode, IO, IOApp, Resource}
-import org.http4s.client.blaze.BlazeClientBuilder
-import org.http4s.client.middleware.Logger
+import com.typesafe.scalalogging.LazyLogging
+import io.circe.generic.auto._
 import org.http4s.circe.CirceEntityDecoder._
 import org.http4s.circe.CirceEntityEncoder._
-import io.circe.generic.auto._
+import org.http4s.client.blaze.BlazeClientBuilder
+import org.http4s.client.middleware.Logger
 
 import io.olownia.domain.eth._
 import io.olownia.rpc.RpcClient
 import io.olownia.streams._
 
 object EthEtl extends IOApp with LazyLogging {
+  val httpEC = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(8))
+
   override def run(args: List[String]): IO[ExitCode] = {
     val app = for {
-      httpClient <- BlazeClientBuilder[IO](global).resource
+      httpClient <- BlazeClientBuilder[IO](httpEC).resource
 
       rpcClient = new RpcClient[IO](
-        "http://localhost:8545",
+        "https://mainnet.infura.io/v3/b2e111d54d0b4992a341bad28cc363c5",
         chunkSize = 50,
         maxConcurrent = 4,
         Logger(logBody = false, logHeaders = true)(httpClient)
       )
 
-      earliest <- Resource.liftF(rpcClient.one[Block.Params, Block](Block.request("earliest")))
-      latest <- Resource.liftF(rpcClient.one[Block.Params, Block](Block.request("latest")))
+      earliest <- Resource.liftF(
+        rpcClient.one[Block.Params, Block](Block.request("earliest"))
+      )
+      latest <- Resource.liftF(
+        rpcClient.one[Block.Params, Block](Block.request("latest"))
+      )
 
       _ <- Resource.liftF(
         IO.delay(
@@ -40,7 +49,7 @@ object EthEtl extends IOApp with LazyLogging {
       // merge blocks and log stream for concurrency
       _ <- blocksAndTransactions
         .stream(earliest, latest)
-        .merge(tokenTransfers.stream(earliest, latest))
+        .concurrently(tokenTransfers.stream(earliest, latest))
         .compile
         .resource
         .drain

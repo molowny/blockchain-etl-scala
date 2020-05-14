@@ -1,17 +1,16 @@
 package io.olownia.streams
 
-import com.typesafe.scalalogging.LazyLogging
 import cats.effect.Async
+import com.typesafe.scalalogging.LazyLogging
 import fs2.Stream
+import io.circe.generic.auto._
 import org.http4s.circe.CirceEntityDecoder._
 import org.http4s.circe.CirceEntityEncoder._
-import io.circe.generic.auto._
 
-import io.olownia.rpc.RpcClient
 import io.olownia.domain.eth._
+import io.olownia.rpc.RpcClient
 
-class BlocksAndTransactions[F[_]: Async](client: RpcClient[F])
-    extends LazyLogging {
+class BlocksAndTransactions[F[_]: Async](client: RpcClient[F]) extends LazyLogging {
   def stream(from: Block, to: Block) =
     for {
       fromNumber <- Stream
@@ -31,9 +30,7 @@ class BlocksAndTransactions[F[_]: Async](client: RpcClient[F])
 
       block <- client
         .stream[Block.Params, Block](blocks)
-        .evalTap { block =>
-          Async[F].delay(logger.info(s"Save block ${block.number} to db"))
-        }
+        .evalTap { block => Async[F].delay(logger.info(s"Save block ${block.number} to db")) }
 
       // transactions
       transactions = Stream(block.transactions)
@@ -42,8 +39,6 @@ class BlocksAndTransactions[F[_]: Async](client: RpcClient[F])
 
       _ <- client
         .stream[Transaction.Params, Transaction](transactions)
-        .evalTap { transaction =>
-          Async[F].delay(logger.info(s"Save transaction ${transaction.hash} to db"))
-        }
+        .evalTap { transaction => Async[F].delay(logger.info(s"Save transaction ${transaction.hash} to db")) }
     } yield ()
 }

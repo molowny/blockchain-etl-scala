@@ -1,7 +1,8 @@
 package io.olownia.domain.eth
 
-import io.circe.{Encoder, Json}
 import io.circe.syntax._
+import io.circe.{Encoder, Json}
+
 import io.olownia.rpc.{RpcRequest, RpcResponse}
 
 case class Log(
