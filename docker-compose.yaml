@@ -1,13 +1,33 @@
 version: "3"
 
 services:
-  geth:
-    image: ethereum/client-go:latest
-    command: "--syncmode light --rpc -rpcaddr 0.0.0.0 --rpcapi eth --cache 1024"
-    ports:
-      - "8545:8545"
+  # geth:
+  #   image: ethereum/client-go:latest
+  #   command: "--syncmode light --graphql --graphql.addr 0.0.0.0 --rpc -rpcaddr 0.0.0.0 --rpcapi eth --cache 1024 --nousb"
+  #   ports:
+  #     - 8545:8545
+  #     - 8547:8547
+
+  # bitcoin:
+  #   image: ruimarinho/bitcoin-core
+  #   # command: "-regtest=1 -prune=550 -printtoconsole -rpcallowip=0.0.0.0/0 -rpcbind=0.0.0.0 -rpcauth=foo:7d9ba5ae63c3d4dc30583ff4fe65a67e$$9e3634e81c11659e3de036d0bf88f89cd169c1039e6e09607562d54765c649cc"
+  #   command: "-txindex=0 -printtoconsole -rpcallowip=0.0.0.0/0 -rpcbind=0.0.0.0 -rpcauth=foo:7d9ba5ae63c3d4dc30583ff4fe65a67e$$9e3634e81c11659e3de036d0bf88f89cd169c1039e6e09607562d54765c649cc"
+  #   ports:
+  #     - 8332:8332
+  #     - 18443:18443
 
   redis:
-    image: "redis:alpine"
+    image: redis:alpine
     ports:
-      - "6379:6379"
+      - 6379:6379
+
+  postgres:
+    image: postgres:latest
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: "etl"
+      POSTGRES_PASSWORD: "etl"
+      POSTGRES_DB: "etl"
+    volumes:
+      - "./sql/schema.sql:/docker-entrypoint-initdb.d/schema.sql"

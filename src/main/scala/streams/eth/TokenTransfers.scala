@@ -1,4 +1,4 @@
-package io.olownia.streams
+package io.olownia.streams.eth
 
 import cats.effect.Async
 import com.typesafe.scalalogging.LazyLogging
@@ -7,7 +7,8 @@ import io.circe.generic.auto._
 import org.http4s.circe.CirceEntityDecoder._
 import org.http4s.circe.CirceEntityEncoder._
 
-import io.olownia.domain.eth._
+import io.olownia.domain.ethereum._
+import io.olownia.rpc.EthereumClient._
 import io.olownia.rpc.RpcClient
 
 class TokenTransfers[F[_]: Async](client: RpcClient[F]) extends LazyLogging {
@@ -31,7 +32,7 @@ class TokenTransfers[F[_]: Async](client: RpcClient[F]) extends LazyLogging {
           for {
             head <- chunk.head
             last <- chunk.last
-          } yield Log.getEcr20TokenTransfers(last, head)
+          } yield Logs.getEcr20TokenTransfers(last, head)
         }
         .collect {
           case Some(request) => request
@@ -39,7 +40,7 @@ class TokenTransfers[F[_]: Async](client: RpcClient[F]) extends LazyLogging {
         .evalTap { log => Async[F].delay(logger.info(s"Get log for: $log")) }
 
       _ <- client
-        .stream[Log.Params, Seq[Log]](logs)
+        .stream[Logs.Params, Seq[Log]](logs)
         .flatMap(Stream.emits)
         .evalTap { log => Async[F].delay(logger.info(s"Extract transaction form log: $log")) }
     } yield ()

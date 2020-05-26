@@ -10,12 +10,14 @@ ThisBuild / scalafixDependencies += organizeImports
 
 lazy val root = (project in file("."))
   .settings(
-    name := "LorreETH",
+    name := "BlockchainEtl",
     semanticdbEnabled := true, // enable SemanticDB
     semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
     libraryDependencies ++= Seq(
+      redis,
       fs2,
       catsEffect,
+      pureConfig,
       scalaTest % Test
-    ) ++ http4s ++ circe ++ logging
+    ) ++ http4s ++ circe ++ doobie ++ logging
   )

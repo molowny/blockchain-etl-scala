@@ -8,38 +8,16 @@ import com.typesafe.scalalogging.LazyLogging
 import fs2.Stream
 import org.http4s.client._
 import org.http4s.client.dsl.Http4sClientDsl
-import org.http4s.{EntityDecoder, EntityEncoder, Method, Uri}
+import org.http4s.{EntityDecoder, EntityEncoder, Header, Method, Uri}
 
-// case class RpcId(id: String)
-
-case class RpcException(
-    code: Int,
-    message: String,
-    data: Option[String]
-) extends RuntimeException(s"Json-RPC error $code: $message")
-    with NoStackTrace
-
-case class RpcRequest[P](
-    jsonrpc: String,
-    method: String,
-    params: P,
-    id: String
-)
-
-case class RpcResponse[R](
-    jsonrpc: String,
-    result: Option[R],
-    error: Option[RpcException],
-    id: String
-)
-
-case class BlockRequest(block: String, fullTransactions: Boolean)
+import io.olownia.rpc.RpcClient._
 
 class RpcClient[F[_]: Concurrent](
     endpoint: String,
     chunkSize: Int,
     maxConcurrent: Int,
-    client: Client[F]
+    client: Client[F],
+    headers: Seq[Header] = Nil
 ) extends Http4sClientDsl[F]
     with LazyLogging {
 
@@ -48,8 +26,8 @@ class RpcClient[F[_]: Concurrent](
       encode: EntityEncoder[F, RpcRequest[P]]
   ): F[R] =
     client
-      .expect[RpcResponse[R]](
-        Method.POST(request, Uri.unsafeFromString(endpoint))
+      .fetchAs[RpcResponse[R]](
+        Method.POST(request, Uri.unsafeFromString(endpoint), headers: _*)
       )
       .flatMap {
         case RpcResponse(_, _, Some(error), _) =>
@@ -72,14 +50,11 @@ class RpcClient[F[_]: Concurrent](
       .chunkN(chunkSize)
       .mapAsyncUnordered(maxConcurrent) { chunks =>
         client
-          .expect[Seq[RpcResponse[R]]](
-            Method.POST(chunks.toList, Uri.unsafeFromString(endpoint))
+          .fetchAs[Seq[RpcResponse[R]]](
+            Method.POST(chunks.toList, Uri.unsafeFromString(endpoint), headers: _*)
           )
       }
       .flatMap(Stream.emits)
-      // .evalTap(response =>
-      //   Concurrent[F].delay(logger.debug(s"Response: $response"))
-      // )
       .flatMap {
         case RpcResponse(_, _, Some(error), _) =>
           Stream.raiseError[F](error)
@@ -93,4 +68,29 @@ class RpcClient[F[_]: Concurrent](
           )
       }
 
+}
+
+object RpcClient {
+  // case class RpcId(id: String)
+
+  case class RpcException(
+      code: Int,
+      message: String,
+      data: Option[String]
+  ) extends RuntimeException(s"Json-RPC error $code: $message")
+      with NoStackTrace
+
+  case class RpcRequest[P](
+      jsonrpc: String,
+      method: String,
+      params: P,
+      id: String
+  )
+
+  case class RpcResponse[R](
+      jsonrpc: Option[String],
+      result: Option[R],
+      error: Option[RpcException],
+      id: String
+  )
 }
